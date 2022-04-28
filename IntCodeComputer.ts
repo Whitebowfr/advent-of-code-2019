@@ -4,7 +4,7 @@ function parseIntCode(data: string): IntCode {
     return data.split(",").map(x => parseInt(x));
 }
 
-function executeCode(code: IntCode, input: number[] | number, debug?: boolean): {code: IntCode, outputQueue: number[]} {
+function executeCode(code: IntCode, input: number[] | number, debug?: boolean): {code: IntCode, outputQueue: number[], stopCode?: 0|99} {
     if (typeof debug == undefined) debug = false;
 
     let outputQueue = [];
@@ -30,14 +30,14 @@ function executeCode(code: IntCode, input: number[] | number, debug?: boolean): 
         switch (currentOpCode) {
             case 1 :
                 value = getValue(code, pm[0], i + 1) + getValue(code, pm[1], i + 2);
-                if (isNaN(value)) throw new Error(`Found NaN value when adding ${getValue(code, pm[1], i + 1)} and ${getValue(code, pm[2], i + 2)} after processing instruction ${code[i]},${code[i+1]},${code[i+1]},${code[i+2]} starting at index ${i}`)
+                if (isNaN(value) || value == undefined) throw new Error(`Found ${value} value when adding ${getValue(code, pm[0], i + 1)} and ${getValue(code, pm[1], i + 2)} after processing instruction ${code[i]},${code[i+1]},${code[i+2]},${code[i+3]} starting at index ${i}`)
                 index = code[i + 3];
                 code[index] = value;
                 stepSize = 4;
                 break;
             case 2 :
                 value = getValue(code, pm[0], i + 1) * getValue(code, pm[1], i + 2);
-                if (isNaN(value)) throw new Error(`Found NaN value when multipliying ${getValue(code, pm[1], i + 1)} with ${getValue(code, pm[2], i + 2)} after processing instruction ${code[i]},${code[i+1]},${code[i+2]},${code[i+1]} starting at index ${i}`)
+                if (isNaN(value) || value == undefined) throw new Error(`Found ${value} value when multipliying ${getValue(code, pm[0], i + 1)} with ${getValue(code, pm[1], i + 2)} after processing instruction ${code[i]},${code[i+1]},${code[i+2]},${code[i+3]} starting at index ${i} with parameters ${pm}`)
                 index = code[i + 3];
                 code[index] = value;
                 stepSize = 4;
@@ -83,18 +83,20 @@ function executeCode(code: IntCode, input: number[] | number, debug?: boolean): 
                 break;
             case 7 :
                 value = Number(getValue(code, pm[0], i + 1) < getValue(code, pm[1], i + 2));
+                if (isNaN(value) || value == undefined) throw new Error(`Found ${value} value when comparing ${getValue(code, pm[0], i + 1)} and ${getValue(code, pm[1], i + 2)} after processing instruction ${code[i]},${code[i+1]},${code[i+2]},${code[i+3]} starting at index ${i} with parameters ${pm}`)
                 index = code[i + 3];
                 code[index] = value;
                 stepSize = 4;
                 break;
             case 8 :
                 value = Number(getValue(code, pm[0], i + 1) === getValue(code, pm[1], i + 2));
+                if (isNaN(value) || value == undefined) throw new Error(`Found ${value} value when comparing equality between ${getValue(code, pm[0], i + 1)} and ${getValue(code, pm[1], i + 2)} after processing instruction ${code[i]},${code[i+1]},${code[i+2]},${code[i+3]} starting at index ${i} with parameters ${pm}`)
                 index = code[i + 3];
                 code[index] = value;
                 stepSize = 4;
                 break;
             case 99 :
-                return {code, outputQueue};
+                return {code, outputQueue, stopCode: 99};
             default :
                 throw new Error(`Unknown OpCode found : ${currentOpCode} at position ${i}`)
         }
