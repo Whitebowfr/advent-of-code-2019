@@ -90,5 +90,3 @@ function getAllAmplifierPhases(arr: number[]): number[][] {
     }
     return result;
 }
-
-console.log(getHighestSignal(data, true))
