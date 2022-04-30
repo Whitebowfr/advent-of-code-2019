@@ -1,20 +1,19 @@
 import { daySeven as data } from "./data";
-import { IntCodeComputer as comp, IntCode } from "./IntCodeComputer";
+import { IntCodeComputer, IntCode } from "./IntCodeComputer";
 
 // Runs in about 10ms
-function getHighestSignal(debug?: boolean) {
+function getHighestSignal(code: string, debug?: boolean) {
     if (typeof debug == undefined) debug = false;
 
-    let code: IntCode = comp.parseIntCode(data);
     let highestSignal = 0;
     let amplifiersPhases: number[][] = getAllAmplifierPhases([0, 1, 2, 3, 4]);
 
     for (let amplifierPhase of amplifiersPhases) {
         let output = 0;
         for (let phaseSetting of amplifierPhase) {
-            let result = comp.executeCode(code, [phaseSetting, output]);
-
-            output = result.outputQueue[0];
+            let computer = new IntCodeComputer(code);
+            computer.executeCode([phaseSetting, output])
+            output = computer.outputQueue[0];
 
             highestSignal = Math.max(highestSignal, output);
         }
@@ -27,36 +26,52 @@ function getHighestSignal(debug?: boolean) {
     return highestSignal;
 }
 
-function getHighestSignalWithFeedbackLoop(debug?: boolean) {
-    if (typeof debug == undefined) debug = false;
-
-    let code: IntCode = comp.parseIntCode(`3,26,1001,26,-4,26,3,27,1002,27,2,27,1,27,26,
-    27,4,27,1001,28,-1,28,1005,28,6,99,0,0,5`);
-
-    let highestSignal = 0;
-    let amplifiersPhases: number[][] = getAllAmplifierPhases([5, 6, 7, 8, 9]);
+function getHighestSignalWithFeedbackLoop(code: string, debug?: boolean) {
+    if (debug == undefined) debug = false
+    let amplifiersPhases : number[][] = getAllAmplifierPhases([5, 6, 7, 8, 9]);
+    let highestSignal: number = 0;
 
     for (let amplifierPhase of amplifiersPhases) {
-        let output: number[] = [0];
-        let result;
-        while (result?.stopCode !== 99) {
-            for (let phaseSetting of amplifierPhase) {
-                console.log([phaseSetting, ...output])
-                result = comp.executeCode(code, [phaseSetting, ...output]);
-    
-                output = result.outputQueue;
-    
-                highestSignal = Math.max(highestSignal, output[0]);
+        let computers: IntCodeComputer[] = [];
+        amplifierPhase.forEach(phaseSetting => {
+            let currentComp = new IntCodeComputer(code)
+            currentComp.setInputs(phaseSetting);
+            computers.push(currentComp);
+        });
+        let stopCode: number = 0;
+        let computerIndex = 0;
+        computers[0].setInputs(0)
+
+        while (stopCode !== 99) {
+            
+            let currentComp = computers[computerIndex]
+            while (currentComp.outputQueue.length === 0 && stopCode !== 99) {
+                stopCode = currentComp.step(currentComp.currentIndex).stopCode ?? 0;
+                if (stopCode !== 99) currentComp.currentIndex += currentComp.currentStepSize;
             }
-            if (debug) {
-                process.stdout.cursorTo(0);
-                process.stdout.write(`Signal with phase ${amplifiersPhases.indexOf(amplifierPhase) + 1} / ${amplifiersPhases.length} is ${output}, highest signal is ${highestSignal}.`)
+
+            if (stopCode !== 99) {
+                let outputQueue = currentComp.outputQueue
+                highestSignal = Math.max(...outputQueue, highestSignal)
+
+                if (debug) {
+                    process.stdout.cursorTo(0);
+                    process.stdout.write(`Signal strength ${outputQueue[0]} found with combination ${amplifiersPhases.indexOf(amplifierPhase) + 1} / ${amplifiersPhases.length}. Highest is ${highestSignal}`)
+                }
+                
+
+                currentComp.outputQueue = [];
+
+                computers[computerIndex] = currentComp;
+
+                computerIndex++;
+                if (computerIndex >= computers.length) computerIndex = 0;
+                computers[computerIndex].setInputs(outputQueue)
             }
         }
-        
     }
-    
-    return highestSignal;
+
+    return highestSignal
 }
 
 function getAllAmplifierPhases(arr: number[]): number[][] {
@@ -76,19 +91,4 @@ function getAllAmplifierPhases(arr: number[]): number[][] {
     return result;
 }
 
-let test = comp.parseIntCode(`3,26,1001,26,-4,26,3,27,1002,27,2,27,1,27,26,
-27,4,27,1001,28,-1,28,1005,28,6,99,0,0,5`)
-while (true) {
-    let output: number[] = [];
-    ([9,8,7,6,5]).forEach(phase => {
-        let result;
-        if (output.length == 0) {
-             result = comp.executeCode(test, phase)
-        } else {
-             result = comp.executeCode(test, [phase, ...output])
-        }
-        output = result.outputQueue;
-        console.log(output)
-
-    });
-}
+console.log(getHighestSignal(data, true))
