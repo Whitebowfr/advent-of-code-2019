@@ -77,7 +77,9 @@ export class IntCodeComputer {
         return {code: this.code, outputQueue: this.outputQueue, stopCode: (stopCode === undefined) ? 0 : stopCode}
     }
 
-    step(currentInputIndex: number): { stopCode?: number } {
+    step(currentInputIndex?: number): { stopCode?: number } {
+        if (currentInputIndex === undefined) currentInputIndex = this.currentInputIndex;
+
         let i = this.currentIndex;
         let stringOpCode = this.code[i].toString();
         if (stringOpCode.length < 2) {
@@ -118,6 +120,7 @@ export class IntCodeComputer {
                     value = this.inputs[this.currentInputIndex]
                     this.currentInputIndex++
                 }
+                if (value === undefined) throw new Error(`Could not find input number ${this.currentInputIndex - 1} in ${this.inputs} after processing ${this.code[i]},${this.code[i+1]} `)
                 index = this.getIndex(pm[0], i + 1);
                 this.code[index] = value;
                 this.currentStepSize = 2;
